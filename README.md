@@ -1,5 +1,9 @@
-# LCD GAUGE
+# Custom Car LCD Gauge
+A real-time automotive gauge system displaying engine and vehicle data on an 1.83" LCD screen using a custom PCB.
 
-## CREDITS
-- Leo Walker
+## Overview
+
+
+## Credits
+- Leo Walker 
 - Noah Walker
