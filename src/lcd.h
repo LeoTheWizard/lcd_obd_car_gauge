@@ -40,11 +40,12 @@ typedef struct rgb16 colour_t;
 
 struct rect
 {
-    u16 x;
-    u16 y;
-    u16 w;
-    u16 h;
+    int x;
+    int y;
+    int w;
+    int h;
 };
+typedef struct rect rect_t;
 
 struct image
 {
@@ -61,7 +62,7 @@ image_t image_create(u16 width, u16 height);
 void image_destroy(image_t* img);
 
 void image_clear(image_t* img, colour_t colour);
-void image_draw_rectangle(image_t* img, struct rect bounds, colour_t colour);
+void image_draw_rectangle(image_t* img, rect_t bounds, colour_t colour);
 void image_draw_text_bg(image_t* img, font_t* font, const char* text, u16 x, u16 y, colour_t bg_colour, colour_t text_colour);
 void image_draw_image(int x, int y, image_t* dst_img, const image_t* src_img);
 

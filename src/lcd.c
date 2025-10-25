@@ -66,7 +66,7 @@ void image_clear(image_t* img, colour_t colour)
     }
 }
 
-void image_draw_rectangle(image_t* img, struct rect bounds, colour_t colour)
+void image_draw_rectangle(image_t* img, rect_t bounds, colour_t colour)
 {
     if(bounds.x > img->width || bounds.y > img->height) return;
     if(bounds.w + bounds.x > img->width) bounds.w = img->width - bounds.x;
@@ -156,10 +156,9 @@ void image_draw_text_bg(image_t* img, font_t* font, const char* text, u16 x, u16
 
 void image_draw_image(int x, int y, image_t* dst_img, const image_t* src_img)
 {
-    printf("x: %d y: %d sw: %d sh: %d\n", x, y, src_img->width, src_img->height);
     // Image completely off screen.
-    if(x > dst_img->width || y > dst_img->height) return;
-    if((int)x < -(int)src_img->width || (int)y < -(int)dst_img->height) return;
+    if(x > (int)dst_img->width || y > (int)dst_img->height) return;
+    if(x < -((int)src_img->width) || y < -((int)dst_img->height)) return;
 
     // Cull dimensions
     int width = src_img->width;

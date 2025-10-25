@@ -172,15 +172,15 @@ int main()
     frame_buffer.width = 240;
     frame_buffer.height = 280;
 
-    spi_instance_t* spi_device = spi_instance_init(SPI_HW_0, 2, 3, 4, 5, false, 80000000);
-    lcd_device_t* lcd_device = lcd_init_fb(&frame_buffer, spi_device, 6, 7, 8);
+    spi_instance_t* spi_device = spi_instance_init(SPI_HW_0, 2, 3, 0, 4, false, 80000000);
+    lcd_device_t* lcd_device = lcd_init_fb(&frame_buffer, spi_device, 5, 7, 8);
 
     lcd_reset(lcd_device);
     image_clear(&frame_buffer, COLOUR_BLACK);
     image_draw_text_bg(&frame_buffer, &gauge_font, "Miles Per Gallon", 15, 180, COLOUR_BLACK, COLOUR_WHITE);
     lcd_update_display(lcd_device);
 
-    float value = 0.0f;
+    float value = 99.0f;
     char value_string[16];
 
     int last_width = 0;
