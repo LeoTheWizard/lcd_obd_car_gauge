@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "spi.h"
+#include "mcp251x/platform/spi.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;

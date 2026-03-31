@@ -6,16 +6,18 @@ set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
 
 set(PICO_BOARD pico2)
 set(PICO_PLATFORM rp2350)
-set(ENV{PICO_SDK_PATH} "/home/leo/pico-sdk")
+set(ENV{PICO_SDK_PATH} "/home/leo/pico/pico-sdk")
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 project(lcd_gauge C CXX ASM)
 
-
-
 pico_sdk_init()
+
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../mcp251x_pico mcp251x_pico)
+
 
 file(GLOB SRC_FILES CONFIGURE_DEPENDS
     src/*.c
@@ -29,16 +31,18 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     pico_time
+    pico_multicore
     hardware_spi
     hardware_dma
     hardware_irq
     hardware_gpio
     hardware_regs
+    mcp251x_pico
 )
 
 # Enable USB and/or UART for stdio
-pico_enable_stdio_usb(${PROJECT_NAME} 0)
-pico_enable_stdio_uart(${PROJECT_NAME} 1)
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
 # Create additional output formats (UF2, bin, etc.)
 pico_add_extra_outputs(${PROJECT_NAME})
