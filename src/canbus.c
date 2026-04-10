@@ -1,6 +1,7 @@
 /**
  * @file canbus.c
  * @author Leo Walker
+ * @date April 2026
  * @brief Core 1 code for handling CAN bus communication and updating mpg global value.
  * @ref canbus.h & obd.h for CAN bus and OBD-II specific definitions and constants.
  *

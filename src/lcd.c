@@ -1,6 +1,7 @@
 /**
  * @file lcd.c
  * @author Leo Walker
+ * @date April 2026
  * @brief This file implements driver functions for the NV3030B LCD controller, interfacing with the RP2350 microcontroller via SPI.
  * The LCD is driven by maintaining a framebuffer in memory, which is then sent to the display when updated.
  * The driver supports basic drawing functions such as clearing the screen, drawing rectangles, and rendering text with a provided font.
@@ -13,15 +14,19 @@
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 
+/// C Headers.
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
+
+/// Pico SDK Headers.
 #include "pico/time.h"
 #include "hardware/gpio.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/regs/dreq.h"
-#include <math.h>
 
+/// Project Headers.
 #include "lcd.h"
 
 #pragma region Images
@@ -60,22 +65,6 @@ void image_destroy(image_t *img)
 
 void image_clear(image_t *img, colour_t colour)
 {
-    // int dma_chan = 0;
-    // dma_channel_wait_for_finish_blocking(dma_chan);
-    // dma_channel_config c = dma_channel_get_default_config(dma_chan);
-
-    // channel_config_set_transfer_data_size(&c, DMA_SIZE_16);
-    // channel_config_set_read_increment(&c, false);
-    // channel_config_set_write_increment(&c, true);
-
-    // dma_channel_configure(
-    //     dma_chan,
-    //     &c,
-    //     img->data,
-    //     &colour,
-    //     img->width * img->height,
-    //     true
-    // );
     for (u32 i = 0; i < img->width * img->height; i++)
     {
         img->data[i] = colour;

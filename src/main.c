@@ -1,19 +1,31 @@
-///
-/// @file main.c
-/// @brief Program entry point for Noah's Car Digital Gauge.
-/// @copyright Leo Walker (c) 2025, All Rights Reserved.
-/// @author Leo Walker
-///
-///
+/**
+ * @file main.c
+ * @author Leo Walker
+ * @date April 2026
+ * @brief Program entry point for Noah's Car Digital Gauge.
+ * This program initializes the LCD display, sets up a framebuffer, and continuously updates the display with the current miles per gallon (MPG) value received from the CAN bus.
+ *
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * This software is written under the GNU GENERAL PUBLIC LICENSE Version 3.
+ * and a copy of the license can be found in the root of this project as 'LICENSE'.
+ * @ref LICENSE for more details.
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 
+/// C Headers.
 #include <stdio.h>
 #include <string.h>
+
+/// Pico SDK Headers.
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "pico/multicore.h"
+
+/// Project Headers.
 #include "lcd.h"
 #include "canbus.h"
 
+/// Image data
 #include "font.h"
 #include "bignumbers.h"
 
