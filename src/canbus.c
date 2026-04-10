@@ -1,21 +1,35 @@
+/**
+ * @file canbus.c
+ * @author Leo Walker
+ * @brief Core 1 code for handling CAN bus communication and updating mpg global value.
+ * @ref canbus.h & obd.h for CAN bus and OBD-II specific definitions and constants.
+ */
 
+/// C Headers.
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+/// Pico SDK Headers.
 #include "pico/stdlib.h"
 #include "pico/stdio.h"
 #include "pico/time.h"
-#include "canbus.h"
-#include "obd.h"
+
+/// CAN Library Header.
 #include "mcp251x/mcp251x.h"
 
+/// Firmware Headers.
+#include "canbus.h"
+#include "obd.h"
+
+/// CAN bus specific variables and objects.
 static MCP251x *can_device = NULL;
 static spi_instance_t *can_spi_bus = NULL;
 
 static float mass_air_flow = 0.0f;
-static float engine_speed = 0.0f;
 static float vehicle_speed = 0.0f;
 
+/// Global miles per gallon variable. This value is updated and displayed to the screen.
 float mpg = 0.0f;
 
 void update_mpg()
@@ -37,12 +51,21 @@ void update_mpg()
     printf("MPG: %.3f\n", mpg);
 }
 
+/**
+ * @brief Core 1 entry point, handles the CAN bus communication on the OBD-II interface.
+ * Requests and recieved OBD-II frames and calculates MPG based on mass air flow and vehicle speed.
+ * Main loop runs at 200hz to recieve all the frames on the bus without loss.
+ * OBD-II PID requests are sent every 50ms / 20hz, alternating between vehicle speed and mass air flow rate and recalculating MPG.
+ */
 void core1_entry()
 {
     printf("Core 1 started, initialising CAN controller...\n");
+
+    // Initialise SPI bus and CAN bus controller (mcp2515).
     can_spi_bus = spi_instance_init(SPI_HW_1, 10, 11, 12, 13, false, 10000000);
     can_device = mcp251x_get_device();
 
+    /// Configure the CAN controller with the correct hardware settings, and initialise it.
     mcp251x_config info;
     info.model = MODEL_MCP2515;
     info.crystal_oscillator = MCP251x_12MHZ;
@@ -52,37 +75,40 @@ void core1_entry()
     if (mcp251x_init(can_device, &info) != MCP251x_ERR_SUCCESS)
         return;
 
-    // Change bitrate to 500 KBPS
+    // Change bitrate to 500 KBPS, as this is the standard bitrate for OBD-II on CAN.
     mcp251x_set_bitrate(can_device, CAN_BITRATE_500KBPS);
 
+    // Loop counter to time sending OBD-II requests.
     int index = 0;
 
+    // Set CAN controller to normal mode to enable communication on the bus and begin receiving frames.
     mcp251x_set_mode(can_device, MCP251x_MODE_NORMAL);
 
+    /**
+     * Core 1 main loop.
+     * 200hz
+     */
     while (1)
     {
+        // Record start of loop timestamp.
+        uint64_t start_loop_time = time_us_64();
+
+        // Object to store recieved CAN message.
         can_frame rxframe;
 
-        static uint32_t counter = 0;
-        // if (++counter % 1000 == 0)
-        // printf("Alive %lu\n", counter);
-
+        // Read any recieved frames from the CAN controller, and if it's a OBD-II response then process the data.
         if (mcp251x_read_frame(can_device, &rxframe) == MCP251x_ERR_SUCCESS)
         {
-            // printf("R %03x\n", rxframe.id);
-            if ((rxframe.id & 0x700) == 0x700) // OBD-II request frame, ignore.
+            // Check if the CAN message is an OBD-II response.
+            if ((rxframe.id & 0x700) == 0x700)
             {
-                printf("[%03x: %d] ", rxframe.id, rxframe.dlc);
-                for (int i = 0; i < rxframe.dlc; i++)
-                {
-                    printf("%02x ", rxframe.data[i]);
-                }
-                printf("\n");
-
+                // Check data structure and length are as expected.
                 if (rxframe.dlc >= 6 && rxframe.data[1] == (OBD_SERVICE_SHOW_CURRENT_DATA + 0x40))
                 {
+                    // Extract PID from response.
                     const uint8_t pid = rxframe.data[2];
 
+                    // If the PID is mass air flow, extract the data and re-calculate MPG.
                     if (pid == OBD_PIDS_MASS_AIR_FLOW_RATE)
                     {
                         mass_air_flow = ((rxframe.data[3] << 8) | rxframe.data[4]) / 100.0f;
@@ -90,96 +116,77 @@ void core1_entry()
                         update_mpg();
                     }
 
-                    if (pid == OBD_PIDS_ENGINE_SPEED)
-                    {
-                        engine_speed = ((rxframe.data[3] << 8) | rxframe.data[4]) / 4.0f;
-                        printf("Engine Speed: %.2f RPM\n", engine_speed);
-                        update_mpg();
-                    }
-
+                    // If the PID is vehicle speed, extract the data and re-calculate MPG.
                     if (pid == OBD_PIDS_VEHICLE_SPEED)
                     {
                         vehicle_speed = rxframe.data[3];
                         printf("Vehicle Speed: %0.2f kph\n", vehicle_speed);
                         update_mpg();
                     }
-
-                    // if (pid == OBD_PIDS_SUPPORTED_21_TO_40 || pid == OBD_PIDS_SUPPORTED_41_TO_60)
-                    // {
-                    //     const uint8_t base_pid = (pid == OBD_PIDS_SUPPORTED_21_TO_40) ? 0x21 : 0x41;
-                    //     uint32_t supported = *((uint32_t *)(rxframe.data + 3));
-                    //     printf("Supported PID range %02X (%s): 0x%08X\n", pid,
-                    //            (pid == OBD_PIDS_SUPPORTED_21_TO_40) ? "21-40" : "41-60",
-                    //            supported);
-                    //     printf("\n");
-                    // }
                 }
             }
         }
 
-        if (index == 1)
+        // If index is 0 (10hz), send OBD-II request for Vehicle Speed.
+        if (index == 0)
         {
-            // Send OBD-II request for supported PIDs.
+            // Object to store OBD-II request frame.
             can_frame txframe;
-            txframe.id = OBD_QUERY_CANID; // OBD-II request frame.
-            txframe.dlc = 8;
-            txframe.data[0] = 2; // Number of additional bytes (service + PID).
-            txframe.data[1] = OBD_SERVICE_SHOW_CURRENT_DATA;
-            txframe.data[2] = OBD_PIDS_VEHICLE_SPEED;
-            memset(txframe.data + 3, 0xCC, 5); // Pad remaining bytes with 0.
+            txframe.id = OBD_QUERY_CANID;                    // Set CAN Id as OBD-II request frame. (0x7DF)
+            txframe.dlc = 8;                                 // OBD requests are always 8 bytes long, unused bytes are padded with 0xCC.
+            txframe.data[0] = 2;                             // Number of additional bytes (service + PID).
+            txframe.data[1] = OBD_SERVICE_SHOW_CURRENT_DATA; // OBD service for requesting live data.
+            txframe.data[2] = OBD_PIDS_VEHICLE_SPEED;        // Set PID for vehicle speed in request.
+            memset(txframe.data + 3, 0xCC, 5);               // Pad remaining bytes with 0xCC per recommendations.
 
+            // Transmit OBD-II request frame.
             mcp251x_error err = mcp251x_send_frame(can_device, &txframe);
-            // printf("Sending request..\n");
+
+            // Log any errors in transmission.
             if (err != MCP251x_ERR_SUCCESS)
             {
                 printf("Failed to send OBD-II VS request frame: %d\n", err);
             }
         }
 
-        if (index == 4)
+        // If index is 10 (10hz), send OBD-II request for Mass Air Flow.
+        if (index == 10)
         {
-            // Send OBD-II request for supported PIDs.
+            // Object to store OBD-II request frame.
             can_frame txframe;
-            txframe.id = OBD_QUERY_CANID; // OBD-II request frame.
-            txframe.dlc = 8;
-            txframe.data[0] = 2; // Number of additional bytes (service + PID).
-            txframe.data[1] = OBD_SERVICE_SHOW_CURRENT_DATA;
-            txframe.data[2] = OBD_PIDS_ENGINE_SPEED;
-            memset(txframe.data + 3, 0xCC, 5); // Pad remaining bytes with 0.
+            txframe.id = OBD_QUERY_CANID;                    // Set CAN Id as OBD-II request frame. (0x7DF)
+            txframe.dlc = 8;                                 // OBD requests are always 8 bytes long, unused bytes are padded with 0xCC.
+            txframe.data[0] = 2;                             // Number of additional bytes (service + PID).
+            txframe.data[1] = OBD_SERVICE_SHOW_CURRENT_DATA; // OBD service for requesting live data.
+            txframe.data[2] = OBD_PIDS_MASS_AIR_FLOW_RATE;   // Set PID for mass air flow in request.
+            memset(txframe.data + 3, 0xCC, 5);               // Pad remaining bytes with 0xCC per recommendations.
 
+            // Transmit OBD-II request frame.
             mcp251x_error err = mcp251x_send_frame(can_device, &txframe);
-            // printf("Sending request..\n");
-            if (err != MCP251x_ERR_SUCCESS)
-            {
-                printf("Failed to send OBD-II ES request frame: %d\n", err);
-            }
-        }
 
-        if (index == 7)
-        {
-            // Send OBD-II request for supported PIDs.
-            can_frame txframe;
-            txframe.id = OBD_QUERY_CANID; // OBD-II request frame.
-            txframe.dlc = 8;
-            txframe.data[0] = 2; // Number of additional bytes (service + PID).
-            txframe.data[1] = OBD_SERVICE_SHOW_CURRENT_DATA;
-            txframe.data[2] = OBD_PIDS_MASS_AIR_FLOW_RATE;
-            memset(txframe.data + 3, 0xCC, 5); // Pad remaining bytes with 0.
-
-            mcp251x_error err = mcp251x_send_frame(can_device, &txframe);
-            // printf("Sending request..\n");
+            // Log any errors in transmission.
             if (err != MCP251x_ERR_SUCCESS)
             {
                 printf("Failed to send OBD-II MAF request frame: %d\n", err);
             }
         }
 
+        // Increment loop counter and wrap around at 20 (50ms / 20hz).
         index++;
-        index %= 10;
-        sleep_ms(10);
-    }
+        index %= 20;
 
-    // Clean up memory, ensure can controller is destroyed first.
+        // Calculate time elapsed in loop and sleep to enforce 200hz loop rate.
+        uint64_t end_loop_time = time_us_64();
+        uint64_t loop_time = end_loop_time - start_loop_time;
+        if (loop_time < 5000) // 5000 microseconds = 5ms
+        {
+            sleep_us(5000 - loop_time);
+        }
+    }
+    // If loop is ever exited, clean up resources before terminating core 1.
+    // Clean up memory, ensure can controller is destroyed first as it is dependent on the SPI instance.
     mcp251x_destroy(can_device);
     spi_instance_destroy(can_spi_bus);
 }
+
+// EOF

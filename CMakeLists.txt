@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_C_COMPILER arm-none-eabi-gcc)
-set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 set(PICO_BOARD pico2)
 set(PICO_PLATFORM rp2350)
-set(ENV{PICO_SDK_PATH} "/home/leo/pico/pico-sdk")
+set(ENV{PICO_SDK_PATH} "/home/leo/external-repos/pico-sdk")
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
 set(CMAKE_C_STANDARD 17)
