@@ -1,8 +1,9 @@
-///
-/// @file lcd.h
-/// @brief Drives the NV3030B lcd controller with the rp2350 microcontroller.
-/// @author Leo Walker
-///
+/**
+ * @file lcd.h
+ * @author Leo Walker
+ * @brief API for driving the NV3030B lcd controller with the RP2350 microcontroller.
+ * @ref lcd.c for implementation.
+ */
 
 #pragma once
 
@@ -17,14 +18,14 @@ typedef uint64_t u64;
 
 typedef struct lcd_device lcd_device_t;
 
-struct font 
+struct font
 {
-    const u8* data;
-    const u32* glyph_index_map;   //  Access with char and recieve pointer to glyph
+    const u8 *data;
+    const u32 *glyph_index_map; //  Access with char and recieve pointer to glyph
     u16 font_height;
 };
 typedef struct font font_t;
-u32 font_measure_text_width(font_t* font, const char* text);
+u32 font_measure_text_width(font_t *font, const char *text);
 
 struct rgb16
 {
@@ -49,28 +50,27 @@ typedef struct rect rect_t;
 
 struct image
 {
-    colour_t* data;
+    colour_t *data;
     u32 width;
     u32 height;
 
     bool is_frame_buffer;
-    lcd_device_t* parent_lcd;
+    lcd_device_t *parent_lcd;
 };
 typedef struct image image_t;
 
 image_t image_create(u16 width, u16 height);
-void image_destroy(image_t* img);
+void image_destroy(image_t *img);
 
-void image_clear(image_t* img, colour_t colour);
-void image_draw_rectangle(image_t* img, rect_t bounds, colour_t colour);
-void image_draw_text_bg(image_t* img, font_t* font, const char* text, u16 x, u16 y, colour_t bg_colour, colour_t text_colour);
-void image_draw_image(int x, int y, image_t* dst_img, const image_t* src_img);
+void image_clear(image_t *img, colour_t colour);
+void image_draw_rectangle(image_t *img, rect_t bounds, colour_t colour);
+void image_draw_text_bg(image_t *img, font_t *font, const char *text, u16 x, u16 y, colour_t bg_colour, colour_t text_colour);
+void image_draw_image(int x, int y, image_t *dst_img, const image_t *src_img);
 
-lcd_device_t* lcd_init_fb(image_t* frame_buffer, spi_instance_t* spi_dev, uint8_t dc, uint8_t rst, uint8_t bl);
-lcd_device_t* lcd_init(u16 width, u16 height, spi_instance_t* spi_dev, uint8_t dc, uint8_t rst, uint8_t bl);
-void lcd_destroy(lcd_device_t* dev);
-void lcd_reset(lcd_device_t* dev);
-void lcd_set_brightness(lcd_device_t* dev, u8 percentage);
-image_t lcd_get_framebuffer(lcd_device_t* dev);
-void lcd_update_display(lcd_device_t* dev);
-
+lcd_device_t *lcd_init_fb(image_t *frame_buffer, spi_instance_t *spi_dev, uint8_t dc, uint8_t rst, uint8_t bl);
+lcd_device_t *lcd_init(u16 width, u16 height, spi_instance_t *spi_dev, uint8_t dc, uint8_t rst, uint8_t bl);
+void lcd_destroy(lcd_device_t *dev);
+void lcd_reset(lcd_device_t *dev);
+void lcd_set_brightness(lcd_device_t *dev, u8 percentage);
+image_t lcd_get_framebuffer(lcd_device_t *dev);
+void lcd_update_display(lcd_device_t *dev);

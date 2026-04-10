@@ -1,3 +1,18 @@
+/**
+ * @file lcd.c
+ * @author Leo Walker
+ * @brief This file implements driver functions for the NV3030B LCD controller, interfacing with the RP2350 microcontroller via SPI.
+ * The LCD is driven by maintaining a framebuffer in memory, which is then sent to the display when updated.
+ * The driver supports basic drawing functions such as clearing the screen, drawing rectangles, and rendering text with a provided font.
+ * This driver is *not* designed to be a fully implemented graphics library, but rather to provide the necessary functionality for this project and to provide a simple API for readability.
+ *
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * This software is written under the GNU GENERAL PUBLIC LICENSE Version 3.
+ * and a copy of the license can be found in the root of this project as 'LICENSE'.
+ * @ref LICENSE for more details.
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "pico/time.h"
@@ -15,7 +30,7 @@ image_t image_create(u16 width, u16 height)
 {
     image_t temp_img;
     temp_img.data = malloc((u32)width * (u32)height * 2);
-    if(temp_img.data)
+    if (temp_img.data)
     {
         temp_img.width = width;
         temp_img.height = height;
@@ -25,16 +40,17 @@ image_t image_create(u16 width, u16 height)
         temp_img.width = 0;
         temp_img.height = 0;
     }
-    
+
     temp_img.is_frame_buffer = false;
     temp_img.parent_lcd = NULL;
 
     return temp_img;
 }
 
-void image_destroy(image_t* img)
+void image_destroy(image_t *img)
 {
-    if(img->data) free(img->data);
+    if (img->data)
+        free(img->data);
     img->data = NULL;
     img->width = 0;
     img->height = 0;
@@ -42,7 +58,7 @@ void image_destroy(image_t* img)
     img->parent_lcd = NULL;
 }
 
-void image_clear(image_t* img, colour_t colour)
+void image_clear(image_t *img, colour_t colour)
 {
     // int dma_chan = 0;
     // dma_channel_wait_for_finish_blocking(dma_chan);
@@ -60,28 +76,31 @@ void image_clear(image_t* img, colour_t colour)
     //     img->width * img->height,
     //     true
     // );
-    for(u32 i = 0; i < img->width * img->height; i++)
+    for (u32 i = 0; i < img->width * img->height; i++)
     {
         img->data[i] = colour;
     }
 }
 
-void image_draw_rectangle(image_t* img, rect_t bounds, colour_t colour)
+void image_draw_rectangle(image_t *img, rect_t bounds, colour_t colour)
 {
-    if(bounds.x > img->width || bounds.y > img->height) return;
-    if(bounds.w + bounds.x > img->width) bounds.w = img->width - bounds.x;
-    if(bounds.h + bounds.y > img->height) bounds.h = img->height - bounds.y;
+    if (bounds.x > img->width || bounds.y > img->height)
+        return;
+    if (bounds.w + bounds.x > img->width)
+        bounds.w = img->width - bounds.x;
+    if (bounds.h + bounds.y > img->height)
+        bounds.h = img->height - bounds.y;
 
-    for(int i = 0; i < bounds.w; i++)
+    for (int i = 0; i < bounds.w; i++)
     {
         img->data[(bounds.y * img->width) + bounds.x + i] = colour;
     }
 
-    for(int i = 1; i < bounds.h; i++)
+    for (int i = 1; i < bounds.h; i++)
     {
-        __builtin_memcpy(img->data + ((bounds.y + i) * img->width) + bounds.x, 
-                        img->data + (bounds.y * img->width) + bounds.x,
-                        bounds.w * 2);
+        __builtin_memcpy(img->data + ((bounds.y + i) * img->width) + bounds.x,
+                         img->data + (bounds.y * img->width) + bounds.x,
+                         bounds.w * 2);
     }
 }
 
@@ -89,8 +108,10 @@ static colour_t colour_blend(const colour_t c1, const colour_t c2, const uint8_t
 {
     colour_t out;
 
-    if (mix == 0)  return c1;
-    if (mix == 255) return c2;
+    if (mix == 0)
+        return c1;
+    if (mix == 255)
+        return c2;
 
     // Extract channels (RGB565)
     uint8_t r1 = (c1.rrrrrggg >> 3) & 0x1F;
@@ -113,35 +134,35 @@ static colour_t colour_blend(const colour_t c1, const colour_t c2, const uint8_t
     return out;
 }
 
-void image_draw_text_bg(image_t* img, font_t* font, const char* text, u16 x, u16 y, colour_t bg_colour, colour_t text_colour)
+void image_draw_text_bg(image_t *img, font_t *font, const char *text, u16 x, u16 y, colour_t bg_colour, colour_t text_colour)
 {
     int str_index = 0;
     int advance_x = 0;
     int advance_y = 0;
-    
-    colour_t* blend_map = malloc(sizeof(colour_t) * 256);
-    for(u16 i = 0; i < 256; i++)
+
+    colour_t *blend_map = malloc(sizeof(colour_t) * 256);
+    for (u16 i = 0; i < 256; i++)
     {
         blend_map[i] = colour_blend(bg_colour, text_colour, i);
     }
 
-    while(text[str_index] != '\0')
+    while (text[str_index] != '\0')
     {
         char c = text[str_index];
-        
-        const u8* glyph_data = font->data + font->glyph_index_map[(int)c];
+
+        const u8 *glyph_data = font->data + font->glyph_index_map[(int)c];
         u8 char_width = *glyph_data;
-        if(c == ' ')
+        if (c == ' ')
         {
             advance_x += char_width;
             str_index++;
             continue;
         }
 
-        for(int iy = 0; iy < font->font_height; iy++)
+        for (int iy = 0; iy < font->font_height; iy++)
         {
-            const u8* row_data = (glyph_data + 1) + char_width * iy;
-            for(int ix = 0; ix < char_width; ix++)
+            const u8 *row_data = (glyph_data + 1) + char_width * iy;
+            for (int ix = 0; ix < char_width; ix++)
             {
                 img->data[(y + advance_y + iy) * img->width + (x + advance_x + ix)] = blend_map[*(row_data + ix)];
             }
@@ -154,31 +175,37 @@ void image_draw_text_bg(image_t* img, font_t* font, const char* text, u16 x, u16
     free(blend_map);
 }
 
-void image_draw_image(int x, int y, image_t* dst_img, const image_t* src_img)
+void image_draw_image(int x, int y, image_t *dst_img, const image_t *src_img)
 {
     // Image completely off screen.
-    if(x > (int)dst_img->width || y > (int)dst_img->height) return;
-    if(x < -((int)src_img->width) || y < -((int)dst_img->height)) return;
+    if (x > (int)dst_img->width || y > (int)dst_img->height)
+        return;
+    if (x < -((int)src_img->width) || y < -((int)dst_img->height))
+        return;
 
     // Cull dimensions
     int width = src_img->width;
-    if(x + width > dst_img->width) width = dst_img->width - x;
+    if (x + width > dst_img->width)
+        width = dst_img->width - x;
     int height = src_img->height;
-    if(y + height > dst_img->height) height = dst_img->height - y;
+    if (y + height > dst_img->height)
+        height = dst_img->height - y;
 
     // Calculate onscreen area
     int x_start = 0;
     int y_start = 0;
-    if(x < 0) x_start = -x;
-    if(y < 0) y_start = -y;
+    if (x < 0)
+        x_start = -x;
+    if (y < 0)
+        y_start = -y;
 
-    for(int i = y_start; i < height; i++)
+    for (int i = y_start; i < height; i++)
     {
         //  Calculate row
-        colour_t* dst_row = dst_img->data + (dst_img->width * (i + y));
-        colour_t* src_row = src_img->data + (src_img->width * i);
+        colour_t *dst_row = dst_img->data + (dst_img->width * (i + y));
+        colour_t *src_row = src_img->data + (src_img->width * i);
 
-        for(int j = x_start; j < width; j++)
+        for (int j = x_start; j < width; j++)
         {
             dst_row[x + j] = src_row[j];
         }
@@ -189,11 +216,11 @@ void image_draw_image(int x, int y, image_t* dst_img, const image_t* src_img)
 
 #pragma region Fonts
 
-u32 font_measure_text_width(font_t* font, const char* text)
+u32 font_measure_text_width(font_t *font, const char *text)
 {
     u32 width = 0;
     u32 str_index = 0;
-    while(text[str_index] != '\0')
+    while (text[str_index] != '\0')
     {
         char c = text[str_index];
         width += *(font->data + font->glyph_index_map[c]);
@@ -217,52 +244,52 @@ enum lcd_madctrl_bits
 
 enum lcd_spi_cmds
 {
-    LCD_SPI_NOP                     = 0x00,
-    LCD_SPI_RESET                   = 0x01,
-    LCD_SPI_SLEEP_IN                = 0x10,
-    LCD_SPI_SLEEP_OUT               = 0x11,
-    LCD_SPI_INVERT_OFF              = 0x20,
-    LCD_SPI_INVERT_ON               = 0x21,
-    LCD_SPI_DISPLAY_OFF             = 0x28,
-    LCD_SPI_DISPLAY_ON              = 0x29,
-    LCD_SPI_COLUMN_ADDRESS          = 0x2A,
-    LCD_SPI_ROW_ADDRESS             = 0x2B,
-    LCD_SPI_MEMORY_WRITE            = 0x2C,
-    LCD_SPI_MADCTL                  = 0x36,
-    LCD_SPI_VERTICAL_SCROLL_START   = 0x37,
-    LCD_SPI_IDLE_MODE_OFF           = 0x38,
-    LCD_SPI_IDLE_MODE_ON            = 0x39,
-    LCD_SPI_PIXEL_FORMAT            = 0x3A
+    LCD_SPI_NOP = 0x00,
+    LCD_SPI_RESET = 0x01,
+    LCD_SPI_SLEEP_IN = 0x10,
+    LCD_SPI_SLEEP_OUT = 0x11,
+    LCD_SPI_INVERT_OFF = 0x20,
+    LCD_SPI_INVERT_ON = 0x21,
+    LCD_SPI_DISPLAY_OFF = 0x28,
+    LCD_SPI_DISPLAY_ON = 0x29,
+    LCD_SPI_COLUMN_ADDRESS = 0x2A,
+    LCD_SPI_ROW_ADDRESS = 0x2B,
+    LCD_SPI_MEMORY_WRITE = 0x2C,
+    LCD_SPI_MADCTL = 0x36,
+    LCD_SPI_VERTICAL_SCROLL_START = 0x37,
+    LCD_SPI_IDLE_MODE_OFF = 0x38,
+    LCD_SPI_IDLE_MODE_ON = 0x39,
+    LCD_SPI_PIXEL_FORMAT = 0x3A
 };
 
 struct lcd_device
 {
     image_t frame_buffer;
-    spi_instance_t* spi_dev;
+    spi_instance_t *spi_dev;
     u8 dc_pin;
     u8 reset_pin;
     u8 backlight_pin;
 };
 
-static void lcd_send_byte(lcd_device_t* dev, u8 data)
+static void lcd_send_byte(lcd_device_t *dev, u8 data)
 {
     gpio_put(dev->dc_pin, true);
     spi_instance_transmit(dev->spi_dev, &data, 1);
 }
 
-static void lcd_send_data(lcd_device_t* dev, u8* data, u32 length)
+static void lcd_send_data(lcd_device_t *dev, u8 *data, u32 length)
 {
     gpio_put(dev->dc_pin, true);
     spi_instance_transmit(dev->spi_dev, data, length);
 }
 
-static void lcd_send_cmd(lcd_device_t* dev, u8 data)
+static void lcd_send_cmd(lcd_device_t *dev, u8 data)
 {
     gpio_put(dev->dc_pin, false);
     spi_instance_transmit_byte(dev->spi_dev, data);
 }
 
-static void lcd_set_address_window(lcd_device_t* dev, u16 x0, u16 y0, u16 x1, u16 y1)
+static void lcd_set_address_window(lcd_device_t *dev, u16 x0, u16 y0, u16 x1, u16 y1)
 {
     u8 column_pack[4] = {x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF};
     u8 row_pack[4] = {y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF};
@@ -277,9 +304,9 @@ static void lcd_set_address_window(lcd_device_t* dev, u16 x0, u16 y0, u16 x1, u1
     lcd_send_cmd(dev, LCD_SPI_MEMORY_WRITE);
 }
 
-lcd_device_t* lcd_init_fb(image_t* frame_buffer, spi_instance_t* spi_dev, uint8_t dc, uint8_t rst, uint8_t bl)
+lcd_device_t *lcd_init_fb(image_t *frame_buffer, spi_instance_t *spi_dev, uint8_t dc, uint8_t rst, uint8_t bl)
 {
-    lcd_device_t* dev = malloc(sizeof(lcd_device_t));
+    lcd_device_t *dev = malloc(sizeof(lcd_device_t));
     dev->frame_buffer = *frame_buffer;
     dev->spi_dev = spi_dev;
     dev->dc_pin = dc;
@@ -303,21 +330,22 @@ lcd_device_t* lcd_init_fb(image_t* frame_buffer, spi_instance_t* spi_dev, uint8_
     return dev;
 }
 
-lcd_device_t* lcd_init(u16 width, u16 height, spi_instance_t* spi_dev, uint8_t dc, uint8_t rst, uint8_t bl)
+lcd_device_t *lcd_init(u16 width, u16 height, spi_instance_t *spi_dev, uint8_t dc, uint8_t rst, uint8_t bl)
 {
     image_t fb = image_create(width, height);
     return lcd_init_fb(&fb, spi_dev, dc, rst, bl);
 }
 
-void lcd_destroy(lcd_device_t* dev)
+void lcd_destroy(lcd_device_t *dev)
 {
-    if(!dev) return;
+    if (!dev)
+        return;
     image_destroy(&dev->frame_buffer);
 
     free(dev);
 }
 
-void lcd_reset(lcd_device_t* dev)
+void lcd_reset(lcd_device_t *dev)
 {
     gpio_put(dev->reset_pin, false);
     sleep_ms(100);
@@ -346,19 +374,18 @@ void lcd_reset(lcd_device_t* dev)
 
     lcd_send_cmd(dev, LCD_SPI_DISPLAY_ON);
     spi_instance_chip_disable(dev->spi_dev);
-
 }
 
-image_t lcd_get_framebuffer(lcd_device_t* dev)
+image_t lcd_get_framebuffer(lcd_device_t *dev)
 {
     return dev->frame_buffer;
 }
 
-void lcd_update_display(lcd_device_t* dev)
+void lcd_update_display(lcd_device_t *dev)
 {
     spi_instance_chip_enable(dev->spi_dev);
-    lcd_set_address_window(dev, 0, 20, dev->frame_buffer.width - 1, dev->frame_buffer.height +19);
-    lcd_send_data(dev, (u8*)dev->frame_buffer.data, dev->frame_buffer.width * dev->frame_buffer.height * sizeof(colour_t));
+    lcd_set_address_window(dev, 0, 20, dev->frame_buffer.width - 1, dev->frame_buffer.height + 19);
+    lcd_send_data(dev, (u8 *)dev->frame_buffer.data, dev->frame_buffer.width * dev->frame_buffer.height * sizeof(colour_t));
     spi_instance_chip_disable(dev->spi_dev);
 }
 

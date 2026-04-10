@@ -3,6 +3,12 @@
  * @author Leo Walker
  * @brief Core 1 code for handling CAN bus communication and updating mpg global value.
  * @ref canbus.h & obd.h for CAN bus and OBD-II specific definitions and constants.
+ *
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * This software is written under the GNU GENERAL PUBLIC LICENSE Version 3.
+ * and a copy of the license can be found in the root of this project as 'LICENSE'.
+ * @ref LICENSE for more details.
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 
 /// C Headers.
