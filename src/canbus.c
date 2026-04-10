@@ -11,16 +11,16 @@
 #include <string.h>
 
 /// Pico SDK Headers.
-#include "pico/stdlib.h"
-#include "pico/stdio.h"
-#include "pico/time.h"
+#include "pico/stdlib.h" // For standard library functions and types.
+#include "pico/stdio.h"  // For printf debugging.
+#include "pico/time.h"   // For timing the main loop.
 
 /// CAN Library Header.
-#include "mcp251x/mcp251x.h"
+#include "mcp251x/mcp251x.h" // For interfacing with the MCP251x external CAN controller chip via the RP2350's SPI hardware.
 
-/// Firmware Headers.
-#include "canbus.h"
-#include "obd.h"
+/// Project Headers.
+#include "canbus.h" // For exposing the core 1 entry point and global variables to other translation units.
+#include "obd.h"    // For OBD-II specific constants such as PIDs and CAN IDs.
 
 /// CAN bus specific variables and objects.
 static MCP251x *can_device = NULL;
@@ -32,6 +32,10 @@ static float vehicle_speed = 0.0f;
 /// Global miles per gallon variable. This value is updated and displayed to the screen.
 float mpg = 0.0f;
 
+/**
+ * @brief Function to calculate miles per gallon from the current mass air flow and vehicle speed.
+ * Called on the recption of new data.
+ */
 void update_mpg()
 {
     /// Calculate fuel mass flow from mass air flow, assume a stoichiometric air-fuel ratio of 14.7:1.
@@ -48,7 +52,6 @@ void update_mpg()
 
     /// Finally, calculate miles per gallon. MPG = MPH / GPH.
     mpg = miles_per_hour / fuel_volume_flow;
-    printf("MPG: %.3f\n", mpg);
 }
 
 /**
